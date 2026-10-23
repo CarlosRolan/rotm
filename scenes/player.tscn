@@ -1,7 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/player.gd" id="1_player"]
-[ext_resource type="Script" path="res://scripts/saurus_model.gd" id="2_model"]
+[ext_resource type="Script" path="res://scripts/saurus_rig.gd" id="2_rig"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.45
@@ -17,11 +17,11 @@ script = ExtResource("1_player")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0)
 shape = SubResource("CapsuleShape3D_body")
 
-[node name="SaurusModel" type="Node3D" parent="."]
-script = ExtResource("2_model")
+[node name="SaurusRig" type="Node3D" parent="."]
+script = ExtResource("2_rig")
 
 [node name="CameraYaw" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 0)
 
 [node name="CameraPitch" type="Node3D" parent="CameraYaw"]
 
