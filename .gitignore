@@ -1,5 +1,6 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
-imported_models/saurian-test-dummy-proxy/saurian-test-dummy-proxy.glb
-imported_models/saurian-test-dummy-proxy/saurian-test-dummy-proxy.glb.import
+
+# Meshes (3D models from Meshy etc.) are kept local, not uploaded
+imported_models/
