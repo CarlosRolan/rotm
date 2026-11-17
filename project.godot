@@ -11,9 +11,13 @@ config_version=5
 [application]
 
 config/name="ROTM"
-run/main_scene="res://scenes/test_level.tscn"
+run/main_scene="res://scenes/menus/start_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
+
+[autoload]
+
+Session="*res://scripts/session.gd"
 
 [display]
 

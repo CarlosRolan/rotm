@@ -24,6 +24,9 @@ The user writes in Spanish; reply in Spanish.
 - **Player movement**, environment interaction and tunable parameters:
   `docs/movimiento_jugador.md`. Read it before working on the player, and update it when
   movement capabilities change.
+- **Menus** (title screen -> race selection -> test level), race data in `data/races/`,
+  the race backdrops and which model each race uses: `docs/menus.md`. Read it before
+  touching menus, races or their backgrounds. The race texts must follow the lore doc.
 
 Keep these docs current: when the user settles a design question or adds a capability,
 update the matching doc in the same session.
@@ -31,8 +34,13 @@ update the matching doc in the same session.
 ## Meshes
 
 - One folder per subrace mesh, named `imported_models/mesh_<subraza>/mesh_<subraza>.glb`
-  (`mesh_escamadura`, `mesh_tiemblatierra`, ...). Keep this naming for new meshes.
-- `imported_models/saurian-test-dummy-proxy/` is the rigged test dummy the game uses now.
+  (`mesh_escamadura`, `mesh_tiemblatierra`, `mesh_sonriente`). Keep this naming: the race
+  selection finds each race's mesh by that file name (see `docs/menus.md`), and plays it in
+  the test level once it is rigged.
+- The test level's character is picked from an in-game menu (Tab), which lists every rigged
+  `.glb` under `imported_models/` (`scripts/model_catalog.gd`). The default is
+  `Crystal_Sentinel/`; `saurian-test-dummy-proxy/` is the older dummy. Character models
+  are shown untextured (their own material, no pixel skin), as the user asked.
 - From now on the user delivers meshes **already rigged** (with a skeleton). When a new one
   arrives, check its bone names against `scripts/saurus_pose.gd` (expects Mixamo-style
   `mixamorig_*` names), its animations, scale, orientation and vertex count before wiring it in.
@@ -44,3 +52,4 @@ update the matching doc in the same session.
 
 - Godot executable: `C:\Users\Rolan\godot\Godot_v4.7.2-stable_win64_console.exe`.
 - Gait regression test: `--headless --path . -s res://tools/gait_test.gd`.
+- Screenshot of any scene (menus): `--path . -s res://tools/scene_shot.gd -- <scene> <out.png> [frames] [--scene-args]`.

@@ -37,6 +37,7 @@ Protagonistas: hombres lagarto (tipo Saurus de Warhammer) que escapan del subsue
 | S (colgado) | Soltarse de la cornisa |
 | Ratón / rueda | Cámara / zoom |
 | Esc / clic | Soltar / capturar el ratón |
+| Tab | Menú de modelos y vuelta al menú principal (pausa el juego) |
 
 ---
 
@@ -89,6 +90,7 @@ según la velocidad.
 | `STANCE_HALF_WIDTH` | 0,16 m | Separación de los pies |
 | `MAX_FOOT_REACH` | 0,9 m | Si un pie plantado se aleja más, da un paso de emergencia |
 | `MAX_FOOT_RISE` | 0,6 m | Un apoyo más alto que esto se considera pared, no escalón |
+| `RUN_CLIP_BLEND` | 2,8 / 3,8 m/s | Velocidades entre las que entra la animación de correr del modelo |
 
 Control de "en el aire" (en `scripts/player.gd`): `COYOTE_TIME` (0,25 s) y
 `GROUND_TOLERANCE` (0,7 m). Mientras haya suelo cerca, no cuenta como aire. Así se evita
@@ -122,19 +124,59 @@ scenes/test_level.tscn   nivel de pruebas (escena principal)
   para piernas y brazos (`_solve_two_bone`), alinea los pies con el suelo y mueve columna,
   cabeza y cola. El esqueleto es de tipo Mixamo.
 - **`pixel_tex.gd` genera las texturas pixeladas** (sin suavizado, proyección triplanar).
-  El Saurus lleva la textura de escamas "plates".
+  Se usan en el escenario; los personajes no llevan textura.
+- **`model_catalog.gd` lista los modelos disponibles** y **`model_menu.gd` es el menú**
+  (Tab) para cambiar de modelo en pleno juego.
 
-### El modelo
+### Los modelos
 
-- `imported_models/saurian-test-dummy-proxy/saurian-test-dummy-proxy.glb`, descargado de
-  Meshy.
-- **Está en `.gitignore`**: el proyecto no funciona en otro ordenador sin ese archivo.
-- **Sin texturas ni UVs** y unos 85.000 vértices. Es un muñeco de pruebas, no el modelo
-  final.
-- **Solo trae la animación `Jump_Run`**, que no se usa. Andar y correr son 100%
-  procedurales. Para atacar, morir, etc. hay que volver a exportar desde Meshy con esas
-  animaciones.
-- `SaurusRig` lo gira 180°, lo centra (`MODEL_OFFSET`) y lo escala ×1,1 (~1,95 m).
+- **Cómo se elige el modelo:**
+  - **Desde la selección de raza** (portada → Start): el de la raza elegida. Ver
+    `docs/menus.md`.
+  - **Desde Debug:** el último elegido en el menú Tab.
+  - **Menú Tab:** solo se abre con Tab. Pausa el juego, recuerda la última elección entre
+    partidas (`user://test_model.cfg`) y tiene un botón para volver al menú principal.
+- **Detección automática:** aparece cualquier `.glb` dentro de `imported_models/` que tenga
+  esqueleto con huesos Mixamo (`mixamorig_Hips`, piernas y pies). Las mallas sin rig no
+  salen. Para añadir un modelo basta con meterlo en esa carpeta.
+- **Ajuste automático al cargar** (`SaurusRig.load_model`):
+  - Centra el modelo en la cadera, lo orienta mirando hacia delante y lo escala ×1,1.
+  - Mide la altura del tobillo de cada modelo.
+  - Baja los brazos según la pose de reposo: el dummy está en pose A y el Sentinel en
+    pose T.
+  - No le pone ninguna textura: cada modelo se ve con su propio material (los de Meshy sin
+    textura salen en gris liso).
+  - La cola es opcional.
+- **Por defecto: `Crystal_Sentinel`** (Meshy, unos 89.000 vértices, pose T, sin texturas ni
+  UVs; tiene cola en la malla pero sin huesos propios). Trae la animación `Running`, que se usa al correr (ver abajo).
+- **`saurian-test-dummy-proxy`**: el muñeco anterior (pose A, con cola, unos 85.000
+  vértices). Trae solo `Jump_Run`.
+- **Línea de comandos:** `-- --model=<nombre del glb>` fuerza un modelo; sirve también
+  con las capturas y la prueba de marcha.
+- **Animaciones:** quieto, andar, saltar y trepar son procedurales. Para atacar, morir,
+  etc. hay que exportar desde Meshy con esas animaciones.
+
+### Correr con la animación del modelo + pies corregidos
+
+Si el modelo trae una animación cuyo nombre empieza por "run" (el Sentinel trae
+`Running`), se usa al correr, con los pies corregidos sobre el terreno (estilo Elden Ring):
+
+- **Mezcla por velocidad:** procedural por debajo de 2,8 m/s y la animación por encima de
+  3,8 m/s; entre medias se mezclan (`RUN_CLIP_BLEND` en `saurus_rig.gd`). En el aire,
+  colgado o trepando vuelve a lo procedural.
+- **Sin patinar:** al cargar el modelo se mide a qué velocidad retrocede el pie apoyado en
+  la animación (Sentinel: 5,7 m/s) y la animación se reproduce más rápida o más lenta
+  según la velocidad real.
+- **Sincronizada con la marcha procedural:** se mide en qué momento despega el pie
+  izquierdo, así la mezcla nunca cruza las piernas.
+- **Corrección de pies:** debajo de cada pie animado se lanza un rayo al suelo. El pie
+  sube o baja esa diferencia con IK, conservando la flexión de rodilla de la animación, y
+  se inclina según la pendiente cuando está cerca del suelo. La cadera baja lo necesario
+  para que el pie más bajo llegue.
+- Código: `_update_run_clip` en `saurus_rig.gd` (mezcla y rayos) y `_apply_clip` /
+  `_prepare_clip` en `saurus_pose.gd` (pose, IK y medición).
+- **Los modelos están en `.gitignore`**: el proyecto no funciona en otro ordenador sin
+  ellos.
 
 ---
 

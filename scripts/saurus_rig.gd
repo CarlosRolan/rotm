@@ -11,14 +11,8 @@ extends Node3D
 
 enum Mode { GROUND, AIR, HANG, CLIMB }
 
-const MODEL_PATH := "res://imported_models/saurian-test-dummy-proxy/saurian-test-dummy-proxy.glb"
 const MODEL_SCALE := 1.1
-## The mesh is authored facing +Z with the hips 0.75 m off the origin; this recentres it.
-const MODEL_OFFSET := Vector3(-0.004, 0.0, -0.746)
-const HIDE_COLOR := Color(0.13, 0.36, 0.42)
-const HIDE_TINT := Color(0.10, 0.30, 0.30, 0.6)
 
-const ANKLE_HEIGHT := 0.2  ## ankle joint above the sole (world metres)
 const STANCE_HALF_WIDTH := 0.16
 const GROUND_PROBE_UP := 0.9  ## how far above the body a foothold is searched for
 const MAX_FOOT_RISE := 0.6  ## footholds higher than this above the body are rejected
@@ -34,6 +28,8 @@ const BOB := [0.03, 0.06, 0.07]
 const LEAN := [0.14, 0.26, 0.4]
 const ARM_SWING := [0.3, 0.42, 0.5]
 const ELBOW_BEND := [0.35, 0.75, 0.95]
+## Speeds (m/s) over which the model's own run clip fades in over the procedural gait.
+const RUN_CLIP_BLEND := [2.8, 3.8]
 
 
 class Foot:
@@ -66,6 +62,20 @@ class Foot:
 
 var mode := Mode.GROUND
 var feet: Array[Foot] = []
+var model_path := ""
+var ankle_height := 0.2  ## ankle joint above the sole (world metres), measured per model
+
+# The model's own run clip, if it has one. SaurusPose plays it with the feet corrected
+# onto the real ground; it fills in run_clip_speed/offset from the clip itself.
+var run_clip: Animation
+var run_clip_speed := 5.0  ## ground speed (m/s) at which the planted foot doesn't slide
+var run_clip_offset := 0.0  ## clip phase where the left foot lifts off (gait phase 0)
+var clip_weight := 0.0
+var clip_phase := 0.0
+var clip_feet: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]  ## animated ankles (world), from SaurusPose
+var clip_ground: Array[float] = [0.0, 0.0]  ## ground under each animated foot, relative to the body
+var clip_normals: Array[Vector3] = [Vector3.UP, Vector3.UP]
+var clip_hips := 0.0
 
 # Pose read by SaurusPose every frame.
 var hips_offset := 0.0  ## vertical, world metres
@@ -83,7 +93,7 @@ var hand_targets: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]  ## world, left/
 var hand_weight := 0.0
 var reach_pole := Vector3.BACK  ## world direction elbows point while reaching
 
-var _skeleton: Skeleton3D
+var _model_root: Node3D
 var _exclude: Array[RID] = []
 var _phase := 0.0
 var _speed := 0.0
@@ -94,38 +104,64 @@ var _step_offset := 0.0
 
 
 func _ready() -> void:
-	var scene := load(MODEL_PATH) as PackedScene
-	if scene == null:
-		push_error("Saurus model not found at %s" % MODEL_PATH)
-		return
-	var flip := Node3D.new()
-	flip.rotation.y = PI
-	flip.scale = Vector3.ONE * MODEL_SCALE
-	add_child(flip)
-	var model := scene.instantiate() as Node3D
-	model.position = MODEL_OFFSET
-	flip.add_child(model)
-	# Stop the imported clip from fighting the procedural pose.
-	for player: AnimationPlayer in model.find_children("*", "AnimationPlayer", true, false):
-		player.stop()
-		player.active = false
-
-	# The model has no UVs, so the pixel texture is mapped triplanar in model space.
-	var hide := PixelTex.material(PixelTex.make("saurus_hide", HIDE_COLOR, "plates", 32, 0.1, 7, HIDE_TINT), 32.0, false)
-	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
-		mi.material_override = hide
-
-	_skeleton = model.find_children("*", "Skeleton3D", true, false)[0]
-	var pose := SaurusPose.new()
-	pose.rig = self
-	_skeleton.add_child(pose)
-
 	for i in 2:
 		var f := Foot.new()
 		f.lateral = -1.0 if i == 0 else 1.0
 		f.phase_offset = 0.0 if i == 0 else 0.5
 		feet.append(f)
+	load_model(ModelCatalog.initial())
 	reset_feet.call_deferred()
+
+
+## Swaps the character mesh. Any rigged model with Mixamo bone names works: it is centred
+## on its hips and turned to face forward; it keeps its own material.
+func load_model(path: String) -> bool:
+	var scene := load(path) as PackedScene
+	if scene == null:
+		push_error("Character model not found at %s" % path)
+		return false
+	var model := scene.instantiate() as Node3D
+	var skeletons := model.find_children("*", "Skeleton3D", true, false)
+	if skeletons.is_empty():
+		push_error("%s has no skeleton" % path)
+		model.free()
+		return false
+	if _model_root:
+		_model_root.free()
+	model_path = path
+
+	var skeleton: Skeleton3D = skeletons[0]
+	var hips := skeleton.get_bone_global_rest(skeleton.find_bone("mixamorig_Hips")).origin
+	var foot := skeleton.get_bone_global_rest(skeleton.find_bone("mixamorig_LeftFoot")).origin
+	var toe_bone := skeleton.find_bone("mixamorig_LeftToeBase")
+	var toe := skeleton.get_bone_global_rest(toe_bone).origin if toe_bone >= 0 else foot + Vector3.BACK
+	var sole := 0.0
+	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		sole = minf(sole, mi.mesh.get_aabb().position.y)
+	ankle_height = (foot.y - sole) * MODEL_SCALE
+
+	# The rig expects the skeleton to face +Z (it is then flipped to face -Z, the body's
+	# forward); models authored facing -Z get an extra half turn.
+	_model_root = Node3D.new()
+	_model_root.rotation.y = PI if toe.z >= foot.z else 0.0
+	_model_root.scale = Vector3.ONE * MODEL_SCALE
+	add_child(_model_root)
+	model.position = Vector3(-hips.x, -sole, -hips.z)
+	_model_root.add_child(model)
+	# SaurusPose samples the clips itself, so the player must not also drive the skeleton.
+	run_clip = null
+	clip_weight = 0.0
+	for player: AnimationPlayer in model.find_children("*", "AnimationPlayer", true, false):
+		player.stop()
+		player.active = false
+		for clip_name in player.get_animation_list():
+			if clip_name.to_lower().begins_with("run"):
+				run_clip = player.get_animation(clip_name)
+
+	var pose := SaurusPose.new()
+	pose.rig = self
+	skeleton.add_child(pose)
+	return true
 
 
 ## Physics bodies the foot probes should ignore (the player's own capsule).
@@ -192,6 +228,8 @@ func update_ground(velocity: Vector3, accel: float, turn_rate: float, delta: flo
 
 	if moving:
 		_phase = fmod(_phase + delta / cycle, 1.0)
+	if run_clip:
+		_update_run_clip(delta)
 
 	# While moving, the gait phase alone decides where each foot is in its step, so a foot
 	# can never fall behind the rhythm: it lifts when its window opens and lands when it
@@ -281,6 +319,7 @@ func update_air(velocity: Vector3, delta: float) -> void:
 	arm_swing = lerpf(arm_swing, 0.0, 1.0 - exp(-6.0 * delta))
 	tail_lift = lerpf(tail_lift, 0.35, 1.0 - exp(-4.0 * delta))
 	hand_weight = move_toward(hand_weight, 0.0, delta * 6.0)
+	clip_weight = move_toward(clip_weight, 0.0, delta / 0.15)
 
 
 ## Hanging or climbing: the controller supplies every limb target.
@@ -288,6 +327,7 @@ func update_reach(new_mode: Mode, hands: Array[Vector3], weight: float, foot_tar
 		foot_normals: Array[Vector3], body_lean: float, pole: Vector3, delta: float) -> void:
 	mode = new_mode
 	_time += delta
+	clip_weight = move_toward(clip_weight, 0.0, delta / 0.15)
 	hand_targets = hands
 	hand_weight = weight
 	reach_pole = pole
@@ -305,6 +345,35 @@ func update_reach(new_mode: Mode, hands: Array[Vector3], weight: float, foot_tar
 	head_look = 0.0
 	tail_lift = lerpf(tail_lift, -0.2, 1.0 - exp(-4.0 * delta))
 	tail_sway = sin(_time * 1.3) * 0.06
+
+
+## Fades the run clip in with speed and keeps it in step with the procedural gait, so the
+## blend never crosses the legs: below full weight the clip follows the gait phase; at full
+## weight the clip runs at the rate that keeps its planted foot still, and the gait follows.
+## Then probes the ground under each animated foot for SaurusPose's foot correction.
+func _update_run_clip(delta: float) -> void:
+	var target := smoothstep(RUN_CLIP_BLEND[0], RUN_CLIP_BLEND[1], _speed)
+	clip_weight = move_toward(clip_weight, target, delta / 0.25)
+	if clip_weight >= 1.0:
+		clip_phase = fmod(clip_phase + delta * _speed / (run_clip_speed * run_clip.length), 1.0)
+		_phase = fmod(clip_phase - run_clip_offset + 1.0, 1.0)
+	else:
+		clip_phase = fmod(_phase + run_clip_offset, 1.0)
+
+	var low := 0.0
+	for i in 2:
+		var p := clip_feet[i]
+		var hit := _ground(Vector3(p.x, global_position.y, p.z))
+		var height := 0.0
+		var normal := Vector3.UP
+		if hit and hit.position.y - global_position.y <= MAX_FOOT_RISE:
+			height = maxf(hit.position.y - global_position.y, -0.55)
+			if hit.normal.y >= cos(deg_to_rad(max_foothold_angle_deg)):
+				normal = hit.normal
+		clip_ground[i] = lerpf(clip_ground[i], height, 1.0 - exp(-25.0 * delta))
+		clip_normals[i] = clip_normals[i].lerp(normal, 1.0 - exp(-15.0 * delta)).normalized()
+		low = minf(low, clip_ground[i])
+	clip_hips = low + _step_offset
 
 
 ## Starts a step from wherever the foot is now. Timed steps (landing, settling, emergency)
@@ -397,9 +466,14 @@ func _foothold(p: Vector3) -> Dictionary:
 func foot_up(f: Foot) -> Vector3:
 	if mode == Mode.HANG or mode == Mode.CLIMB:
 		return f.normal
-	var angle := Vector3.UP.angle_to(f.normal)
+	return limit_tilt(f.normal)
+
+
+## `normal`, tilted no further from vertical than max_foot_tilt_deg.
+func limit_tilt(normal: Vector3) -> Vector3:
+	var angle := Vector3.UP.angle_to(normal)
 	var limit := deg_to_rad(max_foot_tilt_deg)
-	return f.normal if angle <= limit else Vector3.UP.slerp(f.normal, limit / angle)
+	return normal if angle <= limit else Vector3.UP.slerp(normal, limit / angle)
 
 
 func _rest_point(f: Foot) -> Vector3:

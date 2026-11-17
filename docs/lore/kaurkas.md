@@ -10,6 +10,8 @@ tomar y qué ignorar de cada una.
 - Tono del juego: oscuro y brutal, no familiar ni PG-13. Estilo visual en
   `docs/arte/estilo_artistico.md`.
 - El jugador elige entre **tres subrazas**: Tiemblatierras, Escamaduras y Sonrientes.
+- Los textos de la pantalla de selección de raza (`data/races/*.tres`) resumen este
+  documento: si cambia el canon, hay que actualizarlos también.
 
 | Subraza | Carpeta de referencias | Variaciones del creador de personajes |
 |---|---|---|

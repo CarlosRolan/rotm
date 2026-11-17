@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="RaceData" format=3]
+
+[ext_resource type="Script" path="res://scripts/races/race_data.gd" id="1_data"]
+[ext_resource type="PackedScene" path="res://scenes/menus/race_select/backgrounds/sonrientes_bg.tscn" id="2_bg"]
+
+[resource]
+script = ExtResource("1_data")
+id = "sonrientes"
+display_name = "Sonrientes"
+singular = "Sonriente"
+epithet = "La sonrisa del abismo"
+lore = "Los más pequeños y menudos de los Kaurkas: ágiles de mano y rápidos de mente.
+
+Sus molares son tan largos que no pueden cerrar la boca. De ahí su nombre: una [b]sonrisa macabra y permanente[/b], como la de los peces abisales, que esconde una mordida afilada y potente para su tamaño.
+
+Lucen la cresta más exagerada de su pueblo, y las escamas de su espalda crecen tanto que suelen romperse. Con sus manos de tres dedos dominan las herramientas como nadie: arcos y armas arrojadizas."
+height_text = "1,5 – 1,8 m"
+strength = "Precisión a distancia y destreza"
+height_m = 1.65
+mesh_name = "mesh_sonriente"
+fallback_model = "res://imported_models/Crystal_Sentinel/Crystal_Sentinel.glb"
+background = ExtResource("2_bg")
+accent = Color(0.55, 0.88, 0.32, 1)

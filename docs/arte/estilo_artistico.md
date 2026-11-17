@@ -89,8 +89,13 @@ Zonas concretas de Valheim que marcan el tono de color:
 - Densidad de texel: **20 píxeles por metro** en el mundo y **32 px/m** en personajes. Los
   personajes tienen algo más de detalle que el mundo, como en Valheim.
 - Proyección triplanar (no requiere UVs). MSAA 2× para bordes limpios.
-- Iluminación provisional: sol + cielo, tonemap Filmic. **Todavía no hay** niebla, luces de
-  color, partículas ni post-proceso; está pendiente.
+- Escena de pruebas: iluminación provisional (sol + cielo, tonemap Filmic), sin niebla, luces
+  de color ni partículas.
+- **Fondos de la selección de raza** (`docs/menus.md`): primer uso de la atmósfera prevista.
+  - Niebla de profundidad y volumétrica, con un haz de luz en la caverna.
+  - Luces de color: braseros, cristales púrpura, hongos y bulbos verdes y púrpuras.
+  - Bloom suave y partículas: ascuas, polvo, esporas, luciérnagas y mosquitos.
+  - Vegetación que se mece con el viento.
 
 **Para modelos futuros:**
 - Poligonización baja-media; con texturas pequeñas pintadas, del orden de 128–512 px por

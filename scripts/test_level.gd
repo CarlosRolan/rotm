@@ -15,6 +15,9 @@ extends Node3D
 ##   --shot-walk=<deg> --shot-speed=<m/s>                   walk this world heading
 ##   --shot-jump=<frame,frame,...>                          press jump on these frames
 ##   --shot-wait=<frames> --shot-count=<n> --shot-every=<frames>   burst of numbered shots
+##   --model=<glb file name>                                character model (also in normal runs)
+## Outside screenshots, a menu (Tab) picks the character model; see ModelMenu. Entered from
+## the race selection, the level plays the chosen race's model (Session autoload).
 
 const GROUND_SIZE := 160.0
 
@@ -45,6 +48,36 @@ func _ready() -> void:
 	var args := _user_args()
 	if args.has("screenshot"):
 		_run_screenshot(args)
+	elif DisplayServer.get_name() != "headless":
+		var menu := ModelMenu.new()
+		menu.rig = $Player/SaurusRig
+		add_child(menu)
+		_show_race_banner()
+
+
+## Names the race chosen on the selection screen, warns if its model is a stand-in, and
+## fades out after a few seconds. Nothing when the level was opened from Debug.
+func _show_race_banner() -> void:
+	if Session.race == null:
+		return
+	var layer := CanvasLayer.new()
+	add_child(layer)
+	var box := VBoxContainer.new()
+	box.position = Vector2(28, 22)
+	layer.add_child(box)
+	var name_label := MenuTheme.label(Session.race.display_name, 30, Session.race.accent)
+	name_label.add_theme_constant_override("outline_size", 6)
+	box.add_child(name_label)
+	if Session.notice != "":
+		var notice := MenuTheme.label(Session.notice, 16, Color(1.0, 0.75, 0.42))
+		notice.add_theme_constant_override("outline_size", 5)
+		box.add_child(notice)
+	var hint := MenuTheme.label("Tab: modelos y menú principal", 14, MenuTheme.MUTED)
+	hint.add_theme_constant_override("outline_size", 4)
+	box.add_child(hint)
+	var fade := create_tween()
+	fade.tween_interval(7.0)
+	fade.tween_property(box, "modulate:a", 0.0, 1.5)
 
 
 func _make_materials() -> void:
@@ -252,7 +285,7 @@ func _boulder(pos: Vector3, radius: float, seed: int) -> void:
 	body.rotation.y = seed * 1.7
 	var shape := SphereShape3D.new()
 	shape.radius = radius * 0.9
-	_add_visual_and_shape(body, _faceted_sphere(radius, seed, 8, 5, 0.3), _rock, shape)
+	_add_visual_and_shape(body, LowPoly.faceted_sphere(radius, seed, 8, 5, 0.3), _rock, shape)
 	add_child(body)
 
 
@@ -261,7 +294,7 @@ func _hill(pos: Vector3, radius: float, seed: int) -> void:
 	body.position = pos
 	var shape := SphereShape3D.new()
 	shape.radius = radius
-	_add_visual_and_shape(body, _faceted_sphere(radius, seed, 24, 12, 0.03), _grass, shape)
+	_add_visual_and_shape(body, LowPoly.faceted_sphere(radius, seed, 24, 12, 0.03), _grass, shape)
 	add_child(body)
 
 
@@ -284,46 +317,6 @@ func _add_visual_and_shape(body: StaticBody3D, mesh: Mesh, mat: Material, shape:
 	var col := CollisionShape3D.new()
 	col.shape = shape
 	body.add_child(col)
-
-
-## Low-poly sphere with noise-displaced vertices and flat-shaded faces, for rocks and hills.
-func _faceted_sphere(radius: float, seed: int, segments: int, rings: int, jitter: float) -> ArrayMesh:
-	var sphere := SphereMesh.new()
-	sphere.radius = radius
-	sphere.height = radius * 2.0
-	sphere.radial_segments = segments
-	sphere.rings = rings
-	var arrays := sphere.surface_get_arrays(0)
-	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-	var noise := FastNoiseLite.new()
-	noise.seed = seed
-	noise.frequency = 1.2 / radius
-
-	var out_verts := PackedVector3Array()
-	var out_normals := PackedVector3Array()
-	for i in range(0, indices.size(), 3):
-		var tri: Array[Vector3] = []
-		for k in 3:
-			var v := verts[indices[i + k]]
-			tri.append(v * (1.0 + noise.get_noise_3dv(v) * jitter))
-		var n := (tri[2] - tri[0]).cross(tri[1] - tri[0])
-		if n.length_squared() < 1e-10:
-			continue  # degenerate triangle at a pole
-		n = n.normalized()
-		if n.dot(tri[0] + tri[1] + tri[2]) < 0.0:
-			n = -n  # always point away from the centre
-		for k in 3:
-			out_verts.append(tri[k])
-			out_normals.append(n)
-
-	var out := []
-	out.resize(Mesh.ARRAY_MAX)
-	out[Mesh.ARRAY_VERTEX] = out_verts
-	out[Mesh.ARRAY_NORMAL] = out_normals
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, out)
-	return mesh
 
 
 func _user_args() -> Dictionary:

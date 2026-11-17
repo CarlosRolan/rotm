@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/menus/race_select/backgrounds/sonrientes_bg.gd" id="1_bg"]
+
+[node name="SonrientesBackground" type="Node3D"]
+script = ExtResource("1_bg")

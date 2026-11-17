@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="RaceData" format=3]
+
+[ext_resource type="Script" path="res://scripts/races/race_data.gd" id="1_data"]
+[ext_resource type="PackedScene" path="res://scenes/menus/race_select/backgrounds/escamaduras_bg.tscn" id="2_bg"]
+
+[resource]
+script = ExtResource("1_data")
+id = "escamaduras"
+display_name = "Escamaduras"
+singular = "Escamadura"
+epithet = "El depredador alfa"
+lore = "Menos voluminosos que un Tiemblatierras, pero con una musculatura tan compacta que son aún más fuertes de lo que aparentan.
+
+Todo su cuerpo es un arma: manos de cinco dedos con uñas alargadas, mandíbula de cazador y un cráneo protegido por hueso, con una [b]cresta sutil[/b] encima. Otra cresta, robusta, les recorre la espalda hasta la nuca.
+
+Rápidos y letales, se mueven ligeramente inclinados hacia delante, sin perder nunca de vista a su presa."
+height_text = "1,9 – 2,1 m"
+strength = "Velocidad y mucho daño"
+height_m = 2.0
+mesh_name = "mesh_escamadura"
+fallback_model = "res://imported_models/saurian-test-dummy-proxy/saurian-test-dummy-proxy.glb"
+background = ExtResource("2_bg")
+accent = Color(0.88, 0.28, 0.18, 1)

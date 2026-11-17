@@ -1,0 +1,20 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/menus/race_select/race_select.gd" id="1_select"]
+[ext_resource type="Script" path="res://scripts/menus/race_select/model_preview.gd" id="2_preview"]
+
+[node name="RaceSelect" type="Node3D"]
+script = ExtResource("1_select")
+
+[node name="Background" type="Node3D" parent="."]
+
+[node name="Preview" type="Node3D" parent="."]
+script = ExtResource("2_preview")
+
+[node name="CameraPivot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0)
+
+[node name="Camera" type="Camera3D" parent="CameraPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4.6)
+current = true
+fov = 38.0
